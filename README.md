@@ -180,6 +180,7 @@ Short name: t2r
 
 درصورت مشکل در دریافت API ID و API HASH مقادیر در کانال تلگرام قرار گرفته 
 لینک : https://t.me/caffeinexz/3
+
 ---
 
 ## 🔐 اجرای اولیه
