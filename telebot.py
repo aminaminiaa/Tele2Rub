@@ -166,13 +166,14 @@ def was_deleted(job_id=None, message_id=None) -> bool:
     return False
 
 def load_settings() -> dict:
+    default_settings = {"safe_mode": False, "zip_password": "", "caption_mode": True}
     try:
         if SETTINGS_FILE.exists():
-            return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+            loaded = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+            default_settings.update(loaded)
     except Exception:
         pass
-
-    return {"safe_mode": False, "zip_password": ""}
+    return default_settings
 
 def save_settings(data: dict):
     SETTINGS_FILE.write_text(
@@ -310,6 +311,11 @@ async def start_handler(client: Client, message: Message):
         "⚠️اگر فایل در حال آپلود باشه، لغو بعد از پایان تلاش فعلی انجام میشه.\n\n"
         "-پاکسازی کل صف:\n"
         "/delall\n\n"
+        "- حالت ارسال کپشن:\n"
+        "به صورت پیش‌فرض تمام کپشن‌ها ارسال میشن.\n"
+        "برای خاموش/روشن کردن:\n"
+        " /caption on\n"
+        " /caption off\n\n"
         "-حالت Safe Mode:\n"
         "همه فایل‌ها با رمز دلخواهت به صورت ZIP رمزدار ارسال میشن.\n\n"
         "برای فعال/غیرفعال کردن:\n"
@@ -318,6 +324,38 @@ async def start_handler(client: Client, message: Message):
         "⚠️برای فایل‌های حجیم و ویدیوها بهتره Safe Mode خاموش باشه تا سریع‌تر آپلود بشن.\n\n"
         "@caffeinexz"
     )
+
+@app.on_message(filters.private & filters.command("caption"))
+async def caption_handler(client: Client, message: Message):
+    args = message.text.split(maxsplit=1)
+
+    if len(args) < 2:
+        await message.reply_text("برای تغییر وضعیت ارسال کپشن از `/caption on` یا `/caption off` استفاده کن.")
+        return
+
+    action = args[1].strip().lower()
+    settings = load_settings()
+
+    if action == "on":
+        settings["caption_mode"] = True
+        save_settings(settings)
+        await message.reply_text(
+            "ارسال کپشن فعال شد.\n\n"
+            "از این به بعد متون همراه فایل‌ها ارسال خواهند شد."
+        )
+        return
+
+    if action == "off":
+        settings["caption_mode"] = False
+        save_settings(settings)
+        await message.reply_text(
+            "ارسال کپشن غیرفعال شد.\n\n"
+            "از این به بعد فقط خود فایل ارسال می‌شود و متن‌ها نادیده گرفته می‌شوند."
+        )
+        return
+
+    await message.reply_text("دستور نامعتبر است. از `/caption on` یا `/caption off` استفاده کن.")
+
 
 @app.on_message(filters.private & filters.command("safemode"))
 async def safemode_handler(client: Client, message: Message):
@@ -467,7 +505,7 @@ async def delete_one_handler(client: Client, message: Message):
         return
 
 
-@app.on_message(filters.private & filters.text & ~filters.command(["start", "safemode", "del", "delall"]))
+@app.on_message(filters.private & filters.text & ~filters.command(["start", "safemode", "caption", "del", "delall"]))
 async def text_handler(client: Client, message: Message):
     global waiting_for_zip_password
 
@@ -571,11 +609,15 @@ async def media_handler(client: Client, message: Message):
 
         file_size = downloaded_path.stat().st_size
         settings = load_settings()
+        
+        # بررسی وضعیت کپشن و تعیین متن
+        raw_caption = message.caption or ""
+        final_caption = raw_caption if settings.get("caption_mode", True) else ""
 
         task = {
             "type": "local_file",
             "path": str(downloaded_path),
-            "caption": message.caption or "",
+            "caption": final_caption,
             "chat_id": message.chat.id,
             "status_message_id": status.id,
             "file_name": download_name,

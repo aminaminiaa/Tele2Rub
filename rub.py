@@ -281,7 +281,7 @@ def download_url(task: dict) -> Path:
 
     target = unique_path(URL_DIR / name)
     total = int(resp.headers.get("content-length") or 0)
-    downloaded, last_update, started = 0, 0, time.time()
+    downloaded, last_update, started = 0, time.time()
 
     with open(target, "wb") as f:
         for chunk in resp.iter_content(1024 * 1024):
@@ -315,7 +315,7 @@ def download_url(task: dict) -> Path:
     task["file_size"] = target.stat().st_size
     return target
 
-def make_zip_with_password(file_path: Path, password: str) -> Path:
+def make_zip_with_password(file_path: Path, password: str, caption_text: str = "") -> Path:
     zip_path = unique_path(file_path.with_suffix(file_path.suffix + ".zip"))
 
     with pyzipper.AESZipFile(
@@ -326,6 +326,16 @@ def make_zip_with_password(file_path: Path, password: str) -> Path:
     ) as zip_file:
         zip_file.setpassword(password.encode("utf-8"))
         zip_file.write(file_path, arcname=file_path.name)
+
+        if caption_text:
+            # ایجاد یک فایل متنی با همان نام فایل اصلی برای ذخیره کپشن
+            txt_path = file_path.with_name(f"{file_path.stem}_caption.txt")
+            try:
+                txt_path.write_text(caption_text, encoding="utf-8")
+                zip_file.write(txt_path, arcname=txt_path.name)
+            finally:
+                if txt_path.exists():
+                    txt_path.unlink()
 
     return zip_path
 
@@ -387,7 +397,7 @@ def process_task(task: dict):
         push_status(task, "در حال تبدیل به فایل zip ...", "processing")
 
         try:
-            zipped = make_zip_with_password(local_path, zip_password)
+            zipped = make_zip_with_password(local_path, zip_password, caption)
         finally:
             try:
                 if local_path.exists():
