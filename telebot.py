@@ -301,7 +301,8 @@ async def start_handler(client: Client, message: Message):
     await message.reply_text(
         "سلام به ربات tele2rub خوش اومدی💙\n\n"
         "برای انتقال فایل از تلگرام به روبیکا، کافیه فایل رو برام فوروارد کنی.\n"
-        "اگه لینک مستقیم دانلود هم بدی، فایل رو برات دانلود می‌کنم و توی روبیکا می‌فرستم.\n"
+        "🌐 **لینک سایت:** اگه آدرس یک سایت رو بفرستی، کل قالب و فایل‌هاش رو برات استخراج و زیپ می‌کنم!\n"
+        "📝 **متن:** اگه متنی بفرستی که لینک نداشته باشه، تبدیل به فایل `txt.` میشه و به روبیکا ارسال میشه.\n"
         "⚠️لطفا فایل‌ها رو حداکثر ۱۰ تا ۱۰ تا ارسال کن تا از سمت روبیکا به مشکل نخوره.\n\n"
         "برای دانلود از یوتیوب، اینستاگرام و... از این ربات استفاده کن: @Gozilla_bot\n"
         "بعد فایل رو اینجا بفرست تا توی روبیکا برات ارسال کنم.\n\n"
@@ -532,11 +533,43 @@ async def text_handler(client: Client, message: Message):
         return
 
     url = extract_first_url(text)
-
-    if not url or not is_direct_url(url):
-        return
-
     settings = load_settings()
+
+    # اگر پیام ارسالی شامل لینک اینترنتی نبود، به عنوان یک متن در نظر گرفته و به فایل txt تبدیل می‌شود
+    if not url or not is_direct_url(url):
+        txt_name = f"Text_Message_{message.id}.txt"
+        txt_path = DOWNLOAD_DIR / txt_name
+        
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(text)
+            
+        status = await message.reply_text(
+            "📝 متن دریافت شد.\n\n"
+            "وضعیت: در حال آماده‌سازی فایل متنی..."
+        )
+
+        task = {
+            "type": "local_file",
+            "path": str(txt_path),
+            "caption": "", # کپشن خالی است تا در روبیکا متن پیش‌فرض برایش گذاشته شود
+            "chat_id": message.chat.id,
+            "status_message_id": status.id,
+            "file_name": txt_name,
+            "file_size": txt_path.stat().st_size,
+            "safe_mode": settings.get("safe_mode", False),
+            "zip_password": settings.get("zip_password", ""),
+        }
+
+        queue.push(task)
+
+        await status.edit_text(
+            f"متن شما تبدیل به فایل txt شد و در صف قرار گرفت.\n\n"
+            f"فایل: `{txt_name}`\n"
+            f"شناسه: `{task['job_id']}`\n\n"
+            f"برای حذف این مورد از صف:\n"
+            f"`/del {task['job_id']}`"
+        )
+        return
 
     status = await message.reply_text(
         "لینک دریافت شد.\n\n"

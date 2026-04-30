@@ -12,6 +12,9 @@ import pyzipper
 from urllib.parse import urlparse
 import threading
 
+# اضافه شدن ایمپورت مربوط به وب اسکریپر
+from scraper import download_webpage_as_zip
+
 load_dotenv()
 
 SESSION = os.getenv("RUBIKA_SESSION", "rubika_session").strip()
@@ -262,9 +265,10 @@ def download_url(task: dict) -> Path:
     if not url:
         raise RuntimeError("URL خالیه")
 
-    push_status(task, "در حال دانلود ...", "downloading", 0)
+    push_status(task, "در حال دانلود / پردازش لینک...", "downloading", 0)
 
     try:
+        # اتصال اولیه برای تشخیص فرمت لینک
         resp = requests.get(url, stream=True, timeout=(10, 60), allow_redirects=True)
         resp.raise_for_status()
     except requests.exceptions.Timeout:
@@ -274,7 +278,25 @@ def download_url(task: dict) -> Path:
     except requests.exceptions.HTTPError as e:
         code = e.response.status_code if e.response else "نامشخص"
         raise RuntimeError(f"دانلود انجام نشد. کد خطا: {code}")
+        
+    # تشخیص اینکه لینک مربوط به یک صفحه وب است یا فایل دانلودی
+    content_type = resp.headers.get("content-type", "").lower()
+    if "text/html" in content_type:
+        resp.close() # بستن اتصال موقت
+        
+        def scraper_status(msg):
+            push_status(task, msg, "downloading")
+            
+        try:
+            target = download_webpage_as_zip(url, URL_DIR, status_callback=scraper_status)
+        except Exception as e:
+            raise RuntimeError(f"خطا در جمع‌آوری وب‌سایت: {str(e)}")
+            
+        task["file_name"] = target.name
+        task["file_size"] = target.stat().st_size
+        return target
     
+    # اگر فایل مستقیم بود:
     cd = resp.headers.get("content-disposition", "")
     match = re.findall(r'filename="(.+?)"', cd)
     name = match[0] if match else Path(urlparse(url).path).name
