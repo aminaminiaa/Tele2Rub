@@ -30,6 +30,9 @@ MAX_RETRIES = 5
 UPLOAD_TIMEOUT = 1800
 TARGET = "me"
 
+# متن پیش‌فرض برای زمانی که فایل کپشن ندارد یا فایل زیپ است (قابل تغییر)
+DEFAULT_CAPTION = "@caffeinexz"
+
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 QUEUE_DIR.mkdir(parents=True, exist_ok=True)
 URL_DIR.mkdir(parents=True, exist_ok=True)
@@ -281,7 +284,7 @@ def download_url(task: dict) -> Path:
 
     target = unique_path(URL_DIR / name)
     total = int(resp.headers.get("content-length") or 0)
-    downloaded, last_update, started = 0, time.time()
+    downloaded, last_update, started = 0, 0, time.time()
 
     with open(target, "wb") as f:
         for chunk in resp.iter_content(1024 * 1024):
@@ -406,15 +409,21 @@ def process_task(task: dict):
                 pass
 
         send_path = zipped
+        
+        # در حالت سیف مود، تحت هیچ شرایطی کپشن روی خود فایل زیپ نمی‌افتد و از متن پیش‌فرض استفاده می‌شود
+        final_caption_to_send = DEFAULT_CAPTION
 
     else:
         send_path = local_path
+        
+        # در حالت عادی، اگر کپشن خالی باشد (یا حالت کپشن خاموش باشد)، متن پیش‌فرض ارسال می‌شود
+        final_caption_to_send = caption if caption.strip() else DEFAULT_CAPTION
 
     try:
         if is_cancelled(task):
             raise RuntimeError("ارسال لغو شد.")
 
-        send_with_retry(str(send_path), caption, task)
+        send_with_retry(str(send_path), final_caption_to_send, task)
 
         push_status(
             task,
