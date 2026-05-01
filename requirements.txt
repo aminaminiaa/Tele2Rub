@@ -2,6 +2,7 @@ pyrogram==2.0.106
 tgcrypto==1.2.5
 rubpy==7.3.4
 python-dotenv==1.2.2
-requests==2.25.1
+requests>=2.31.0
 pyzipper==0.3.6
 beautifulsoup4==4.12.2
+yt-dlp>=2023.12.30

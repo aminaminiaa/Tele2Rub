@@ -34,7 +34,7 @@ UPLOAD_TIMEOUT = 1800
 TARGET = "me"
 
 # متن پیش‌فرض برای زمانی که فایل کپشن ندارد یا فایل زیپ است (قابل تغییر)
-DEFAULT_CAPTION = "@caffeinexz"
+DEFAULT_CAPTION = "@Aminaminiaa"
 
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 QUEUE_DIR.mkdir(parents=True, exist_ok=True)
