@@ -226,7 +226,6 @@ def eta_text(seconds) -> str:
     return f"{s}s"
 
 async def upload_progress_tg(current, total, status_message, file_name, started_at, state):
-    """هندلر پراگرس برای آپلود در تلگرام (سمت کاربر)"""
     now = time.time()
     if now - state.get("last_update", 0) < 3 and current < total:
         return
@@ -513,7 +512,7 @@ async def text_handler(client: Client, message: Message):
             await message.reply_text("❌ لینک نامعتبر است. لطفاً یک لینک صحیح ارسال کنید:")
             return
         
-        # ذخیره موقت لینک در حافظه برای کال‌بک دیتا (جلوگیری از خطای محدودیت کاراکتر تلگرام)
+        # ذخیره موقت لینک در حافظه برای کال‌بک دیتا
         short_id = str(uuid.uuid4())[:8]
         temp_urls[short_id] = url
         
@@ -535,7 +534,7 @@ async def text_handler(client: Client, message: Message):
             
         status_msg = await message.reply_text("⏳ در حال دریافت و دانلود قالب سایت... (این فرآیند ممکن است کمی طول بکشد)")
         try:
-            # فراخوانی اسکریپر در یک رشته موازی تا ربات قفل نشود
+            # فراخوانی اسکریپر در یک رشته موازی
             zip_path = await asyncio.to_thread(download_webpage_as_zip, url, DOWNLOAD_DIR, None)
             
             await status_msg.edit_text("📤 در حال آپلود سایت در تلگرام شما...")
@@ -588,7 +587,7 @@ async def text_handler(client: Client, message: Message):
         user_states.pop(message.chat.id, None)
         return
 
-    # اگر کاربر در هیچ وضعیتی نبود ولی لینک فرستاد (راهنمایی کاربر)
+    # اگر کاربر در هیچ وضعیتی نبود ولی لینک فرستاد
     if url:
         await message.reply_text(
             "⚠️ شما یک لینک ارسال کردید.\n\n"
@@ -635,9 +634,10 @@ async def mdl_callback(client: Client, callback_query):
 
     await callback_query.message.edit_text("⏳ در حال استخراج و دانلود از سرور مرجع... لطفا صبور باشید.")
 
-    from media_dl import download_media
+    # اصلاح نام ماژول ایمپورت شده در اینجا
+    from md import download_media
     try:
-        # فراخوانی مدیا دانلودر (yt-dlp)
+        # فراخوانی مدیا دانلودر
         file_path = await asyncio.to_thread(download_media, url, quality, str(DOWNLOAD_DIR))
         
         await callback_query.message.edit_text("📤 در حال آپلود فایل در تلگرام...")
