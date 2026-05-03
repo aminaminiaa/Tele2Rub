@@ -1,22 +1,23 @@
 import yt_dlp
 import os
 import time
-from pathlib import Path
 
 def download_media(url: str, quality: str, download_dir: str) -> str:
     """
     دانلود رسانه با استفاده از yt-dlp بر اساس کیفیت درخواستی.
-    quality می‌تواند شامل: audio, 480, 720, 1080 باشد.
     """
     timestamp = int(time.time())
     base_name = f"media_{timestamp}"
     
-    # تنظیمات پایه برای جلوگیری از خطاهای متداول
+    # تنظیمات پایه بهینه شده برای جلوگیری از گیر کردن و بلاک شدن
     ydl_opts = {
         'outtmpl': os.path.join(download_dir, f"{base_name}.%(ext)s"),
-        'quiet': True,
+        'quiet': False, # تغییر به False برای دیدن ارورهای احتمالی در کنسول
         'no_warnings': True,
         'nocheckcertificate': True,
+        'socket_timeout': 30, # جلوگیری از گیر کردن تا ابد (بسیار مهم)
+        'retries': 3,
+        'geo_bypass': True,
     }
 
     # تخصیص فرمت‌ها بر اساس درخواست کاربر
@@ -37,15 +38,23 @@ def download_media(url: str, quality: str, download_dir: str) -> str:
         ydl_opts['format'] = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
         ydl_opts['merge_output_format'] = 'mp4'
     else:
-        ydl_opts['format'] = 'best' # پیش‌فرض
+        ydl_opts['format'] = 'best'
 
     # شروع فرآیند دانلود
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        
-        # پیدا کردن مسیر فایلی که در دیسک ذخیره شده است
-        for file in os.listdir(download_dir):
-            if file.startswith(base_name):
-                return os.path.join(download_dir, file)
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            
+            # تلاش برای دریافت مسیر دقیق فایل از خود yt-dlp
+            if 'requested_downloads' in info and len(info['requested_downloads']) > 0:
+                return info['requested_downloads'][0]['filepath']
+            
+            # در صورتی که مسیر در متغیر بالا نبود (مثل بعضی فایل‌های صوتی)، در پوشه می‌گردیم
+            for file in os.listdir(download_dir):
+                if file.startswith(base_name):
+                    return os.path.join(download_dir, file)
+                    
+    except Exception as e:
+        raise Exception(f"خطا از سمت سرور مرجع یا محدودیت دانلود:\n{str(e)[:200]}")
 
     raise Exception("متأسفانه فایل مورد نظر دانلود نشد.")
