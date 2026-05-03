@@ -21,9 +21,8 @@ def download_media(url: str, quality: str, download_dir: str) -> str:
         'socket_timeout': 30,
         'retries': 5,
         'geo_bypass': True,
-        # جا زدن ربات به عنوان گوشی اندروید برای دور زدن محدودیت‌های API یوتیوب
         'extractor_args': {
-            'youtube': ['player_client=android,web']
+            'youtube': {'player_client': ['android', 'web']}
         },
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36',
@@ -34,7 +33,6 @@ def download_media(url: str, quality: str, download_dir: str) -> str:
     if os.path.exists(cookies_file):
         ydl_opts['cookiefile'] = cookies_file
 
-    # استفاده از سیستم مدرن format_sort برای جلوگیری از خطای فرمت
     if quality == "audio":
         ydl_opts['format'] = 'bestaudio/best'
         ydl_opts['postprocessors'] = [{
@@ -43,9 +41,13 @@ def download_media(url: str, quality: str, download_dir: str) -> str:
             'preferredquality': '192',
         }]
     elif quality in ["480", "720", "1080"]:
-        ydl_opts['format'] = 'bestvideo+bestaudio/best'
-        # ربات کیفیت‌ها را مرتب می‌کند و بهترین را تا سقف مجاز انتخاب می‌کند
-        ydl_opts['format_sort'] = [f'res:{quality}', 'ext:mp4:m4a', 'vcodec:h264']
+        # فرمت با فال‌بک هوشمند: ابتدا کیفیت دقیق، سپس نزدیک‌ترین، در نهایت هر چیزی
+        ydl_opts['format'] = (
+            f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/'
+            f'bestvideo[height<={quality}]+bestaudio/'
+            f'best[height<={quality}]/'
+            'bestvideo+bestaudio/best'
+        )
         ydl_opts['merge_output_format'] = 'mp4'
     else:
         ydl_opts['format'] = 'bestvideo+bestaudio/best'
@@ -66,25 +68,23 @@ def download_media(url: str, quality: str, download_dir: str) -> str:
         return None
 
     try:
-        # تلاش اول: دانلود با کیفیت درخواستی کاربر
         result = attempt_download(ydl_opts)
-        if result: return result
+        if result: 
+            return result
         
     except Exception as e:
         error_str = str(e).lower()
         
-        # سیستم فال‌بک: اگر فرمت درخواستی نبود، هر فرمتی که موجود است را دانلود کن
-        if "requested format is not available" in error_str:
+        if "requested format is not available" in error_str or "no video formats" in error_str:
             try:
-                print("Fallback: Attempting to download any available format...")
-                ydl_opts['format'] = 'b' # ساده‌ترین فرمت یکپارچه (بدون نیاز به ادغام)
-                ydl_opts.pop('format_sort', None)
+                print("⚠️ فرمت درخواستی موجود نیست. در حال دانلود بهترین فرمت موجود...")
+                ydl_opts['format'] = 'best'
                 result = attempt_download(ydl_opts)
-                if result: return result
+                if result: 
+                    return result
             except Exception as fallback_err:
                 raise Exception(f"شکست در دانلود فایل:\n{str(fallback_err)[:150]}")
         
-        # خطاهای رایج
         if "ffmpeg" in error_str and "is not installed" in error_str:
              raise Exception("نرم‌افزار FFmpeg روی سرور شما نصب نیست. لطفاً آن را نصب کنید.")
         

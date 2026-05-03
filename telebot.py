@@ -634,8 +634,8 @@ async def mdl_callback(client: Client, callback_query):
 
     await callback_query.message.edit_text("⏳ در حال استخراج و دانلود از سرور مرجع... لطفا صبور باشید.")
 
-    # اصلاح نام ماژول ایمپورت شده در اینجا
-    from md import download_media
+    from md import download_media 
+    
     try:
         # فراخوانی مدیا دانلودر
         file_path = await asyncio.to_thread(download_media, url, quality, str(DOWNLOAD_DIR))
@@ -678,10 +678,19 @@ async def mdl_callback(client: Client, callback_query):
             "zip_password": settings.get("zip_password", ""),
         }
         queue.push(task)
-        await callback_query.message.edit_text(f"✅ فایل در تلگرام ارسال شد و در صف روبیکا قرار گرفت.\n\nشناسه: `{task['job_id']}`")
+        await callback_query.message.edit_text(
+            f"✅ فایل در تلگرام ارسال شد و در صف روبیکا قرار گرفت.\n\n"
+            f"شناسه: `{task['job_id']}`"
+        )
+        
+        # پاکسازی از حافظه موقت
+        temp_urls.pop(short_id, None)
         
     except Exception as e:
-        await callback_query.message.edit_text(f"❌ خطا در دانلود:\n{e}")
+        await callback_query.message.edit_text(f"❌ خطا در دانلود:\n{str(e)}")
+        temp_urls.pop(short_id, None)
+
+
 
 @app.on_message(
     filters.private
